@@ -1,0 +1,88 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main 
+
+env:
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }} 
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test 
+
+  build_and_push:
+    name: Build & Push Docker Image
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }} 
+          password: ${{ secrets.DOCKER_PASSWORD }} 
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:latest
+
+  deploy:
+    name: Deploy to Server
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy and Restart via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "Iniciando deploy na VM OCI..."
+            
+            # Navega para o diretório (Ex: /home/ubuntu/meu-app)
+            cd ${{ secrets.SERVER_APP_PATH }}
+            
+            # Atualiza o repositório para garantir o .env, .prod.yml e código mais recentes
+            git pull origin main
+            
+            # Define variáveis de ambiente para o docker-compose.prod.yml usar
+            export IMAGE_NAME=${{ secrets.IMAGE_NAME }}
+            export IMAGE_TAG=${{ env.IMAGE_TAG }}
+            
+            # 🚨 Comandos de Deploy
+            # 1. Pull da nova imagem (com a tag SHA)
+            sudo docker-compose -f docker-compose.prod.yml pull app
+            
+            # 2. Recria o container do serviço 'app' sem depender de recriar o DB
+            sudo docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate app
+            
+            # 3. Limpa imagens não utilizadas
+            sudo docker image prune -f
+            
+            echo "Deploy concluído e aplicação atualizada!"
