@@ -63,3 +63,7 @@ Instalação do Docker, Docker Compose e Git.
 Clonagem inicial do repositório no diretório SERVER_APP_PATH.
 
 Criação manual do arquivo .env com as variáveis de ambiente de produção (senhas do DB, etc.).
+
+
+
+Ip para teste: http://163.176.178.32:3000/
