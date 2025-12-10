@@ -1,12 +1,10 @@
-#cloud-config
 package_update: true
 package_upgrade: true
 
 packages:
-  - git # Instala o Git para o deploy
+  - git 
 
 runcmd:
-  # 1. Instalação do Docker (Processo otimizado para Ubuntu)
   - sudo apt-get update
   - sudo apt-get install -y ca-certificates curl gnupg lsb-release
   - sudo mkdir -p /etc/apt/keyrings
@@ -15,9 +13,7 @@ runcmd:
   - sudo apt-get update
   - sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-  # 2. Configuração de Permissões para o usuário padrão (ubuntu)
   - sudo usermod -aG docker ubuntu
   
-  # 3. Habilita o serviço Docker
   - sudo systemctl enable docker
   - sudo systemctl start docker

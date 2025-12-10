@@ -1,4 +1,3 @@
-# Obtém o IP público da primeira VNIC da instância
 data "oci_core_vnic_attachments" "vnic_attachments" {
   compartment_id = var.compartment_ocid
   instance_id    = oci_core_instance.ci_cd_server.id
