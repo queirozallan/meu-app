@@ -8,9 +8,10 @@ on:
 env:
   IMAGE_NAME: ${{ secrets.IMAGE_NAME }} 
   IMAGE_TAG: ${{ github.sha }}
-  SERVER_APP_PATH: /home/ubuntu/meu-app 
+  SERVER_APP_PATH: /home/ubuntu/meu-app # Caminho na VM para o deploy
 
 jobs:
+  # 1. Job de Testes (CI)
   test:
     name: 🧪 Run tests
     runs-on: ubuntu-latest
@@ -26,6 +27,7 @@ jobs:
       - name: Run tests
         run: npm test
       
+  # 2. Job de Construção e Publicação (CI)
   build_and_push:
     name: 🏗️ Build & Push Docker Image
     needs: test
@@ -47,12 +49,13 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_NAME }}:latest
 
+  # 3. Job de Provisionamento da Infraestrutura (IaC)
   provision_infra:
     name: ⚙️ Provision Infra (Terraform Apply - OCI)
     runs-on: ubuntu-latest
     needs: build_and_push 
     outputs:
-      server_ip: ${{ steps.output-ip.outputs.ip }}
+      server_ip: ${{ steps.output-ip.outputs.ip }} # Exporta o IP dinâmico
       
     steps:
       - name: Checkout Code
@@ -63,19 +66,25 @@ jobs:
         with:
           terraform_version: 1.5.0 
 
+      # CRIA ARQUIVO DE CHAVE PRIVADA DE API (Para autenticação OCI)
       - name: Create OCI API Private Key File
         run: |
           echo "${{ secrets.OCI_API_PRIVATE_KEY }}" > oci_api_key.pem
           chmod 600 oci_api_key.pem
 
-      - name: Terraform Init
-        run: terraform init
+      # 🚨 CORREÇÃO: Inicialização em duas etapas para resolver erro de backend
+      - name: Terraform Init (No Backend)
+        run: terraform init -backend=false
         working-directory: ./terraform
 
+      - name: Terraform Init (Migrate Backend)
+        run: terraform init
+        working-directory: ./terraform
+      
       - name: Terraform Apply
         id: apply
         run: |
-          # 🚨 2. Executa o Apply, passando os 8 Secrets OCI/SSH para criar a VM
+          # Executa o Apply, passando os 8 Secrets OCI/SSH como variáveis
           terraform apply -auto-approve \
             -var "tenancy_ocid=${{ secrets.OCI_TENANCY_OCID }}" \
             -var "user_ocid=${{ secrets.OCI_USER_OCID }}" \
@@ -90,13 +99,15 @@ jobs:
       - name: Extract Public IP Output
         id: output-ip
         run: |
+          # Captura o IP gerado pelo outputs.tf
           IP=$(terraform output -raw server_public_ip)
           echo "ip=$IP" >> $GITHUB_OUTPUT
         working-directory: ./terraform
 
+  # 4. Job de Deploy da Aplicação (CD)
   deploy:
     name: 🚀 Deploy to Server
-    needs: provision_infra 
+    needs: provision_infra # Depende da infra ser criada
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -106,18 +117,18 @@ jobs:
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ needs.provision_infra.outputs.server_ip }} 
-          username: ubuntu 
+          username: ubuntu # Usuário padrão
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "Aguardando 60s para o Cloud-Init finalizar a instalação do Docker..."
-            sleep 60 # Necessário para Docker/Git estarem instalados
+            sleep 60 # Espera a instalação do Docker/Git
             
             cd ${{ env.SERVER_APP_PATH }}
             git pull origin main
             
             export IMAGE_TAG=${{ github.sha }}
             
-            # 🚨 4. COMANDOS CORRIGIDOS (Docker Run, que funciona)
+            # Comandos corrigidos (Docker Run)
             sudo docker stop meu-app-prod || true
             sudo docker rm meu-app-prod || true
             
