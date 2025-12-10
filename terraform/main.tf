@@ -2,6 +2,7 @@
 # 1. Configuração do Terraform (Provedores e Backend Remoto)
 # ----------------------------------------------------
 terraform {
+  # 🚨 required_providers DEVE VIR ANTES
   required_providers {
     oci = {
       source  = "oracle/oci"
@@ -9,9 +10,9 @@ terraform {
     }
   }
 
-  # CONFIGURAÇÃO DO BACKEND REMOTO OCI (Object Storage)
+  # CONFIGURAÇÃO DO BACKEND REMOTO OCI
   backend "oci" {
-    # Seu Bucket e Namespace (coletados nos passos anteriores)
+    # Seu Bucket e Namespace
     bucket_name = "terraform-state-querizallan" 
     namespace   = "gr2km3pgjkez"                 
     region      = "sa-saopaulo-1"
@@ -27,14 +28,13 @@ provider "oci" {
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
   fingerprint      = var.fingerprint
-  private_key_path = "oci_api_key.pem" # Arquivo criado no runner do GitHub
+  private_key_path = "oci_api_key.pem" # Arquivo criado no runner
   region           = var.region
 }
 
 # ----------------------------------------------------
-# 3. Data Source: Encontrar a Imagem Ubuntu (Base da VM)
+# 3. Data Source: Encontrar a Imagem Ubuntu
 # ----------------------------------------------------
-# Busca a imagem do Ubuntu 22.04 mais recente disponível
 data "oci_core_images" "ubuntu_image" {
   compartment_id = var.compartment_ocid
   operating_system = "Canonical Ubuntu"
@@ -49,9 +49,8 @@ data "oci_core_images" "ubuntu_image" {
 }
 
 # ----------------------------------------------------
-# 4. Data Source: Cloud-Init Script (Bootstrap)
+# 4. Data Source: Cloud-Init Script
 # ----------------------------------------------------
-# Carrega o script 'cloud-init.yaml' (instala Docker/Git)
 data "template_file" "cloud_init" {
   template = file("cloud-init.yaml")
 }
@@ -69,15 +68,13 @@ resource "oci_core_instance" "ci_cd_server" {
     source_id   = sort(data.oci_core_images.ubuntu_image.images.*.id)[0]
   }
 
-  # Configuração da Placa de Rede (VNIC)
   create_vnic_details {
-    subnet_id        = var.subnet_ocid # Sua Subnet Pública (OCID)
-    assign_public_ip = true # Necessário para o deploy
+    subnet_id        = var.subnet_ocid
+    assign_public_ip = true 
   }
 
-  # Injeção da Chave SSH Pública e do script Cloud-Init
   metadata = {
-    ssh_authorized_keys = var.ssh_authorized_keys # Seu Secret SSH_PUBLIC_KEY
+    ssh_authorized_keys = var.ssh_authorized_keys
     user_data           = base64encode(data.template_file.cloud_init.rendered)
   }
 }
