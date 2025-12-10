@@ -1,0 +1,34 @@
+------------------------------------------------------------------
+
+1. ARQUIVOS E VARIÁVEIS DA APLICAÇÃO
+
+------------------------------------------------------------------
+
+node_modules
+.env
+.env.*
+
+------------------------------------------------------------------
+
+2. ARQUIVOS E ESTADO DO TERRAFORM (CRUCIAL)
+
+------------------------------------------------------------------
+
+Arquivos de variáveis com valores (contêm tokens de API)
+
+*.tfvars
+
+Arquivos de estado (contêm dados sensíveis e o mapeamento da infra)
+
+*.tfstate
+.tfstate.
+terraform.tfstate.backup
+
+Diretório de trabalho local do Terraform (plugins, caches, etc.)
+
+.terraform/
+
+Arquivos de chave SSH que NUNCA devem ir para o Git
+
+*.pem
+*.key
