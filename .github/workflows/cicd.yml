@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build_and_push 
     outputs:
-      server_ip: ${{ steps.output-ip.outputs.ip }} # Exporta o IP dinâmico
+      server_ip: ${{ steps.output-ip.outputs.ip }} 
       
     steps:
       - name: Checkout Code
@@ -73,10 +73,12 @@ jobs:
           chmod 600 oci_api_key.pem
 
       # 🚨 CORREÇÃO: Inicialização em duas etapas para resolver erro de backend
+      # Passo 1: Inicializa sem tentar carregar o backend (instala o provedor OCI)
       - name: Terraform Init (No Backend)
         run: terraform init -backend=false
         working-directory: ./terraform
 
+      # Passo 2: Inicializa de novo, agora que o provedor OCI está instalado, e carrega o estado
       - name: Terraform Init (Migrate Backend)
         run: terraform init
         working-directory: ./terraform
@@ -99,7 +101,6 @@ jobs:
       - name: Extract Public IP Output
         id: output-ip
         run: |
-          # Captura o IP gerado pelo outputs.tf
           IP=$(terraform output -raw server_public_ip)
           echo "ip=$IP" >> $GITHUB_OUTPUT
         working-directory: ./terraform
@@ -117,11 +118,11 @@ jobs:
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ needs.provision_infra.outputs.server_ip }} 
-          username: ubuntu # Usuário padrão
+          username: ubuntu 
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "Aguardando 60s para o Cloud-Init finalizar a instalação do Docker..."
-            sleep 60 # Espera a instalação do Docker/Git
+            sleep 60 
             
             cd ${{ env.SERVER_APP_PATH }}
             git pull origin main
