@@ -10,14 +10,6 @@ terraform {
     }
   }
 
-  # CONFIGURAÇÃO DO BACKEND REMOTO OCI
-  backend "oci" {
-    # Seu Bucket e Namespace
-    bucket_name = "terraform-state-querizallan" 
-    namespace   = "gr2km3pgjkez"                 
-    region      = "sa-saopaulo-1"
-    key         = "meu-app-prod/terraform.tfstate"
-  }
 }
 
 # ----------------------------------------------------
