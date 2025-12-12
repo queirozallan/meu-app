@@ -11,6 +11,7 @@ env:
   SERVER_APP_PATH: /home/ubuntu/meu-app
 
 jobs:
+  # 1. Job de Testes (CI)
   test:
     name: 🧪 Run tests
     runs-on: ubuntu-latest
@@ -26,6 +27,7 @@ jobs:
       - name: Run tests
         run: npm test
       
+  # 2. Job de Construção e Publicação (CI)
   build_and_push:
     name: 🏗️ Build & Push Docker Image
     needs: test
@@ -47,6 +49,7 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_NAME }}:latest
 
+  # 3. Job de Provisionamento da Infraestrutura (IaC)
   provision_infra:
     name: ⚙️ Provision Infra (Terraform Apply - OCI)
     runs-on: ubuntu-latest
@@ -67,10 +70,12 @@ jobs:
           echo "${{ secrets.OCI_API_PRIVATE_KEY }}" > oci_api_key.pem
           chmod 600 oci_api_key.pem
 
+      # PASSO 1: Instala o provedor
       - name: Terraform Init (Install Provider)
         run: terraform init -backend=false
         working-directory: ./terraform
 
+      # PASSO 2: Configura o backend via CLI
       - name: Terraform Init (Configure Remote Backend)
         run: |
           terraform init -migrate-state \
@@ -83,7 +88,7 @@ jobs:
       - name: Terraform Apply
         id: apply
         run: |
-          # Executa o Apply, passando os Secrets OCI/SSH como variáveis
+          # Executa o Apply, injetando TODAS as variáveis
           terraform apply -auto-approve \
             -var "tenancy_ocid=${{ secrets.OCI_TENANCY_OCID }}" \
             -var "user_ocid=${{ secrets.OCI_USER_OCID }}" \
@@ -102,6 +107,7 @@ jobs:
           echo "ip=$IP" >> $GITHUB_OUTPUT
         working-directory: ./terraform
 
+  # 4. Job de Deploy da Aplicação (CD)
   deploy:
     name: 🚀 Deploy to Server
     needs: provision_infra 

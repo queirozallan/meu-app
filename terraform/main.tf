@@ -2,8 +2,7 @@
 # 1. Configuração do Terraform (Provedores)
 # ----------------------------------------------------
 terraform {
-  # IMPORTANTE: O bloco 'backend "oci" {}' FOI REMOVIDO para evitar o erro 'Unsupported backend type'
-  # A configuração do backend é agora passada via CLI no arquivo cicd.yml (Job provision_infra).
+  # O bloco 'backend "oci" {}' FOI REMOVIDO e a configuração é passada via CLI no cicd.yml.
   
   required_providers {
     oci = {
@@ -22,7 +21,7 @@ provider "oci" {
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
   fingerprint      = var.fingerprint
-  private_key_path = "oci_api_key.pem" # Arquivo criado no runner
+  private_key_path = var.private_key_path # 🚨 CORREÇÃO: Usando a nova variável declarada
   region           = var.region
 }
 
@@ -71,4 +70,5 @@ resource "oci_core_instance" "ci_cd_server" {
     ssh_authorized_keys = var.ssh_authorized_keys
     user_data           = base64encode(data.template_file.cloud_init.rendered)
   }
+
 }

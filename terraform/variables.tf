@@ -14,8 +14,11 @@ variable "fingerprint" {
   type        = string
 }
 
-# NOTA: A variável "private_key_content" foi removida, pois a chave é passada
-# via arquivo (oci_api_key.pem) e não via conteúdo da variável.
+# 🚨 VARIÁVEL ADICIONADA: O caminho da chave privada (oci_api_key.pem)
+variable "private_key_path" {
+  description = "Caminho do arquivo da chave privada OCI (gerado no runner)."
+  type        = string
+}
 
 # Variáveis de Localização e Recurso
 variable "region" {
