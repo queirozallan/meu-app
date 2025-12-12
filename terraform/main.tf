@@ -3,14 +3,13 @@
 # ----------------------------------------------------
 terraform {
   # O bloco 'backend "oci" {}' FOI REMOVIDO (Configurado via CLI no cicd.yml).
-  
+
   required_providers {
     oci = {
       source  = "oracle/oci"
       version = "~> 5.0"
     }
   }
-
 }
 
 # ----------------------------------------------------
@@ -20,33 +19,30 @@ provider "oci" {
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
   fingerprint      = var.fingerprint
-  private_key_path = var.private_key_path 
+  private_key_path = var.private_key_path
   region           = var.region
 }
 
 # ----------------------------------------------------
-# 3. Data Source: Encontrar o Availability Domain e a Imagem
+# 3. Data Source: Availability Domains e Imagem
 # ----------------------------------------------------
 
-# Data Source para pegar o primeiro Availability Domain disponível (Requisito OCI)
+# Pega o primeiro Availability Domain
 data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
-data "oci_core_images" "ubuntu_image" {
-  # CORREÇÃO: Usamos o OCID da Tenancy para buscar a imagem pública
+# Busca uma imagem Oracle Linux 9 (sempre disponível)
+data "oci_core_images" "oracle_linux" {
   compartment_id           = var.tenancy_ocid
-  
-  # 🚨 CORREÇÃO ESSENCIAL: Trocamos para Oracle Linux (SO nativo garantido na OCI)
   operating_system         = "Oracle Linux"
-  operating_system_version = "8" 
-  
-  # Filtro para garantir que pegamos a mais nova
+  operating_system_version = "9"
+
   sort_by    = "TIMECREATED"
   sort_order = "DESC"
 
   filter {
-    name  = "lifecycle_state"
+    name   = "lifecycle_state"
     values = ["AVAILABLE"]
   }
 }
@@ -62,22 +58,21 @@ data "template_file" "cloud_init" {
 # 5. Recurso: OCI Compute Instance (VM de Produção)
 # ----------------------------------------------------
 resource "oci_core_instance" "ci_cd_server" {
-  # CORREÇÃO: Adiciona o Availability Domain (Requisito OCI)
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   
   compartment_id = var.compartment_ocid
   display_name   = "ci-cd-server-iac"
-  shape          = "VM.Standard.E3.Flex" # <-- O shape é aplicado AQUI, no recurso.
-  
+  shape          = "VM.Standard.E3.Flex"
+
+  # Escolhe a imagem Oracle Linux 9 mais recente
   source_details {
     source_type = "image"
-    # source_id agora acessa a primeira imagem Oracle Linux válida.
-    source_id   = data.oci_core_images.ubuntu_image.images[0].id 
+    source_id   = data.oci_core_images.oracle_linux.images[0].id
   }
 
   create_vnic_details {
     subnet_id        = var.subnet_ocid
-    assign_public_ip = true 
+    assign_public_ip = true
   }
 
   metadata = {
@@ -85,9 +80,8 @@ resource "oci_core_instance" "ci_cd_server" {
     user_data           = base64encode(data.template_file.cloud_init.rendered)
   }
 
-  # CORREÇÃO: Adiciona timeouts para evitar o travamento por limite de tempo
   timeouts {
-    create = "30m" 
+    create = "30m"
     update = "30m"
     delete = "30m"
   }
