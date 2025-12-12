@@ -34,13 +34,14 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 data "oci_core_images" "ubuntu_image" {
-  compartment_id           = var.compartment_ocid
+  # 🚨 CORREÇÃO FINAL: Usamos o OCID da Tenancy para buscar a imagem pública
+  compartment_id           = var.tenancy_ocid
+  
   operating_system         = "Canonical Ubuntu"
   operating_system_version = "22.04"
-  shape                    = "VM.Standard.E3.Flex" # Filtro de shape
+  shape                    = "VM.Standard.E3.Flex"
   
-  # 🚨 CORREÇÃO: Removemos o filtro REGEX restritivo que estava causando o erro "Splat of null value".
-  # Agora busca a imagem mais recente do Ubuntu 22.04.
+  # Filtro para garantir que pegamos a mais nova
   sort_by    = "TIMECREATED"
   sort_order = "DESC"
 
@@ -70,7 +71,7 @@ resource "oci_core_instance" "ci_cd_server" {
   
   source_details {
     source_type = "image"
-    # Correção: O sort do Data Source garante que esta chamada não será nula.
+    # source_id agora acessa o primeiro item da lista não-nula
     source_id   = data.oci_core_images.ubuntu_image.images[0].id 
   }
 
@@ -84,7 +85,7 @@ resource "oci_core_instance" "ci_cd_server" {
     user_data           = base64encode(data.template_file.cloud_init.rendered)
   }
 
-  # 🚨 CORREÇÃO: Adiciona timeouts para evitar o travamento por limite de tempo
+  # CORREÇÃO: Adiciona timeouts para evitar o travamento por limite de tempo
   timeouts {
     create = "30m" 
     update = "30m"
