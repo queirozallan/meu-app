@@ -38,10 +38,12 @@ data "oci_core_images" "ubuntu_image" {
   compartment_id           = var.tenancy_ocid
   
   operating_system         = "Canonical Ubuntu"
-  operating_system_version = "22.04"
-  # 🚨 CORREÇÃO FINAL: A linha 'shape = "VM.Standard.E3.Flex"' FOI REMOVIDA
-  # para que a lista de imagens não seja vazia.
   
+  # 🚨 CORREÇÃO FINAL: Removendo o filtro de versão (22.04) para flexibilizar a busca
+  # e garantir que a OCI retorne uma imagem válida.
+  # A linha 'operating_system_version = "22.04"' foi removida.
+  # A linha 'shape = "VM.Standard.E3.Flex"' foi removida na correção anterior.
+
   # Filtro para garantir que pegamos a mais nova
   sort_by    = "TIMECREATED"
   sort_order = "DESC"
@@ -72,7 +74,7 @@ resource "oci_core_instance" "ci_cd_server" {
   
   source_details {
     source_type = "image"
-    # source_id agora acessa o primeiro elemento da lista não-vazia.
+    # source_id agora acessa o primeiro elemento da lista que deve ser populada.
     source_id   = data.oci_core_images.ubuntu_image.images[0].id 
   }
 
