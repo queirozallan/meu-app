@@ -2,7 +2,7 @@
 # 1. Configuração do Terraform (Provedores)
 # ----------------------------------------------------
 terraform {
-  # O bloco 'backend "oci" {}' FOI REMOVIDO e a configuração é passada via CLI no cicd.yml.
+  # O bloco 'backend "oci" {}' FOI REMOVIDO (Configurado via CLI no cicd.yml).
   
   required_providers {
     oci = {
@@ -20,7 +20,7 @@ provider "oci" {
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
   fingerprint      = var.fingerprint
-  private_key_path = var.private_key_path # <-- AGORA A CHAVE É ENCONTRADA AQUI
+  private_key_path = var.private_key_path 
   region           = var.region
 }
 
@@ -34,15 +34,19 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 data "oci_core_images" "ubuntu_image" {
-  compartment_id = var.compartment_ocid
-  operating_system = "Canonical Ubuntu"
+  compartment_id           = var.compartment_ocid
+  operating_system         = "Canonical Ubuntu"
   operating_system_version = "22.04"
-  shape          = "VM.Standard.E3.Flex"
+  shape                    = "VM.Standard.E3.Flex" # Filtro de shape
+  
+  # 🚨 CORREÇÃO: Removemos o filtro REGEX restritivo que estava causando o erro "Splat of null value".
+  # Agora busca a imagem mais recente do Ubuntu 22.04.
+  sort_by    = "TIMECREATED"
+  sort_order = "DESC"
 
   filter {
-    name = "display_name"
-    values = ["^.*-22.04-.*-v[0-9]{4}.*$"] 
-    regex = true
+    name  = "lifecycle_state"
+    values = ["AVAILABLE"]
   }
 }
 
@@ -57,7 +61,7 @@ data "template_file" "cloud_init" {
 # 5. Recurso: OCI Compute Instance (VM de Produção)
 # ----------------------------------------------------
 resource "oci_core_instance" "ci_cd_server" {
-  # 🚨 CORREÇÃO: Adiciona o Availability Domain (Requisito OCI)
+  # CORREÇÃO: Adiciona o Availability Domain (Requisito OCI)
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   
   compartment_id = var.compartment_ocid
@@ -66,7 +70,8 @@ resource "oci_core_instance" "ci_cd_server" {
   
   source_details {
     source_type = "image"
-    source_id   = sort(data.oci_core_images.ubuntu_image.images.*.id)[0]
+    # Correção: O sort do Data Source garante que esta chamada não será nula.
+    source_id   = data.oci_core_images.ubuntu_image.images[0].id 
   }
 
   create_vnic_details {
@@ -79,5 +84,10 @@ resource "oci_core_instance" "ci_cd_server" {
     user_data           = base64encode(data.template_file.cloud_init.rendered)
   }
 
-
+  # 🚨 CORREÇÃO: Adiciona timeouts para evitar o travamento por limite de tempo
+  timeouts {
+    create = "30m" 
+    update = "30m"
+    delete = "30m"
+  }
 }
