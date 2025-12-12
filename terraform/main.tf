@@ -11,7 +11,7 @@ terraform {
 }
 
 # ----------------------------------------------------
-# 2. Definição do Provedor OCI (Autenticação)
+# 2. Provedor OCI (Autenticação)
 # ----------------------------------------------------
 provider "oci" {
   tenancy_ocid     = var.tenancy_ocid
@@ -22,17 +22,17 @@ provider "oci" {
 }
 
 # ----------------------------------------------------
-# 3. Data Source: Availability Domains e Imagem
+# 3. Data Sources: Availability Domain e Imagem
 # ----------------------------------------------------
 
-# Pega o primeiro Availability Domain da região
+# ADs — pode usar tenancy aqui mesmo
 data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
-# Busca imagem Oracle Linux 9 dentro do COMPARTMENT do projeto
+# Buscar imagem Oracle Linux 9 no COMPARTIMENTO CORRETO
 data "oci_core_images" "oracle_linux" {
-  compartment_id           = var.compartment_ocid   # <-- CORREÇÃO DEFINITIVA
+  compartment_id           = var.compartment_ocid  # agora correto
   operating_system         = "Oracle Linux"
   operating_system_version = "9"
 
@@ -53,7 +53,7 @@ data "template_file" "cloud_init" {
 }
 
 # ----------------------------------------------------
-# 5. Criação da VM
+# 5. Criação da Instância (VM)
 # ----------------------------------------------------
 resource "oci_core_instance" "ci_cd_server" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
@@ -77,4 +77,26 @@ resource "oci_core_instance" "ci_cd_server" {
     user_data           = base64encode(data.template_file.cloud_init.rendered)
   }
 
+  timeouts {
+    create = "30m"
+    update = "30m"
+    delete = "30m"
+  }
+}
+
+# ----------------------------------------------------
+# 6. Output: IP Público da VM
+# ----------------------------------------------------
+data "oci_core_vnic_attachments" "vnic_attachments" {
+  compartment_id = var.compartment_ocid
+  instance_id    = oci_core_instance.ci_cd_server.id
+}
+
+data "oci_core_vnic" "vnic" {
+  vnic_id = data.oci_core_vnic_attachments.vnic_attachments.vnic_attachments[0].vnic_id
+}
+
+output "server_public_ip" {
+  description = "IP Público do servidor provisionado na OCI."
+  value       = data.oci_core_vnic.vnic.public_ip_address
 }
