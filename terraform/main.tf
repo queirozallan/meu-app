@@ -25,14 +25,12 @@ provider "oci" {
 # 3. Data Sources: Availability Domain e Imagem
 # ----------------------------------------------------
 
-# ADs — pode usar tenancy aqui mesmo
 data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
-# Buscar imagem Oracle Linux 9 no COMPARTIMENTO CORRETO
 data "oci_core_images" "oracle_linux" {
-  compartment_id           = var.compartment_ocid  # agora correto
+  compartment_id           = var.compartment_ocid
   operating_system         = "Oracle Linux"
   operating_system_version = "9"
 
@@ -82,21 +80,4 @@ resource "oci_core_instance" "ci_cd_server" {
     update = "30m"
     delete = "30m"
   }
-}
-
-# ----------------------------------------------------
-# 6. Output: IP Público da VM
-# ----------------------------------------------------
-data "oci_core_vnic_attachments" "vnic_attachments" {
-  compartment_id = var.compartment_ocid
-  instance_id    = oci_core_instance.ci_cd_server.id
-}
-
-data "oci_core_vnic" "vnic" {
-  vnic_id = data.oci_core_vnic_attachments.vnic_attachments.vnic_attachments[0].vnic_id
-}
-
-output "server_public_ip" {
-  description = "IP Público do servidor provisionado na OCI."
-  value       = data.oci_core_vnic.vnic.public_ip_address
 }
