@@ -2,8 +2,6 @@
 # 1. Configuração do Terraform (Provedores)
 # ----------------------------------------------------
 terraform {
-  # O bloco 'backend "oci" {}' FOI REMOVIDO (Configurado via CLI no cicd.yml).
-
   required_providers {
     oci = {
       source  = "oracle/oci"
@@ -27,14 +25,14 @@ provider "oci" {
 # 3. Data Source: Availability Domains e Imagem
 # ----------------------------------------------------
 
-# Pega o primeiro Availability Domain
+# Pega o primeiro Availability Domain da região
 data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
-# Busca uma imagem Oracle Linux 9 (sempre disponível)
+# Busca imagem Oracle Linux 9 dentro do COMPARTMENT do projeto
 data "oci_core_images" "oracle_linux" {
-  compartment_id           = var.tenancy_ocid
+  compartment_id           = var.compartment_ocid   # <-- CORREÇÃO DEFINITIVA
   operating_system         = "Oracle Linux"
   operating_system_version = "9"
 
@@ -48,23 +46,22 @@ data "oci_core_images" "oracle_linux" {
 }
 
 # ----------------------------------------------------
-# 4. Data Source: Cloud-Init Script
+# 4. Cloud-Init
 # ----------------------------------------------------
 data "template_file" "cloud_init" {
   template = file("cloud-init.yaml")
 }
 
 # ----------------------------------------------------
-# 5. Recurso: OCI Compute Instance (VM de Produção)
+# 5. Criação da VM
 # ----------------------------------------------------
 resource "oci_core_instance" "ci_cd_server" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-  
+
   compartment_id = var.compartment_ocid
   display_name   = "ci-cd-server-iac"
   shape          = "VM.Standard.E3.Flex"
 
-  # Escolhe a imagem Oracle Linux 9 mais recente
   source_details {
     source_type = "image"
     source_id   = data.oci_core_images.oracle_linux.images[0].id
