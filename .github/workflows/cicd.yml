@@ -8,9 +8,10 @@ on:
 env:
   IMAGE_NAME: ${{ secrets.IMAGE_NAME }} 
   IMAGE_TAG: ${{ github.sha }}
-  SERVER_APP_PATH: /home/ubuntu/meu-app 
+  SERVER_APP_PATH: /home/ubuntu/meu-app # Caminho na VM para o deploy
 
 jobs:
+  # 1. Job de Testes (CI)
   test:
     name: 🧪 Run tests
     runs-on: ubuntu-latest
@@ -26,6 +27,7 @@ jobs:
       - name: Run tests
         run: npm test
       
+  # 2. Job de Construção e Publicação (CI)
   build_and_push:
     name: 🏗️ Build & Push Docker Image
     needs: test
@@ -47,6 +49,7 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_NAME }}:latest
 
+  # 3. Job de Provisionamento da Infraestrutura (IaC)
   provision_infra:
     name: ⚙️ Provision Infra (Terraform Apply - OCI)
     runs-on: ubuntu-latest
@@ -63,23 +66,32 @@ jobs:
         with:
           terraform_version: 1.5.0 
 
+      # CRIA ARQUIVO DE CHAVE PRIVADA DE API (Para autenticação OCI)
       - name: Create OCI API Private Key File
         run: |
           echo "${{ secrets.OCI_API_PRIVATE_KEY }}" > oci_api_key.pem
           chmod 600 oci_api_key.pem
 
-      - name: Terraform Init (No Backend)
+      # 🚨 PASSO 1: Inicializa sem backend para instalar o provedor OCI
+      - name: Terraform Init (Install Provider)
         run: terraform init -backend=false
         working-directory: ./terraform
 
-      - name: Terraform Init (Migrate Backend)
-        run: terraform init
+      # 🚨 PASSO 2 CORRIGIDO: Inicializa o backend e carrega o estado, passando as configs via CLI
+      # Isso contorna o problema de ordem no main.tf que estava causando o erro "Unsupported backend type"
+      - name: Terraform Init (Configure Remote Backend)
+        run: |
+          terraform init -migrate-state \
+            -backend-config="bucket=terraform-state-querizallan" \
+            -backend-config="namespace=gr2km3pgjkez" \
+            -backend-config="region=sa-saopaulo-1" \
+            -backend-config="key=terraform.tfstate"
         working-directory: ./terraform
       
       - name: Terraform Apply
         id: apply
         run: |
-          # Executa o Apply, passando os 8 Secrets OCI/SSH como variáveis
+          # Executa o Apply, passando os Secrets OCI/SSH como variáveis
           terraform apply -auto-approve \
             -var "tenancy_ocid=${{ secrets.OCI_TENANCY_OCID }}" \
             -var "user_ocid=${{ secrets.OCI_USER_OCID }}" \
@@ -98,9 +110,10 @@ jobs:
           echo "ip=$IP" >> $GITHUB_OUTPUT
         working-directory: ./terraform
 
+  # 4. Job de Deploy da Aplicação (CD)
   deploy:
     name: 🚀 Deploy to Server
-    needs: provision_infra 
+    needs: provision_infra # Depende da infra ser criada
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
