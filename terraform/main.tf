@@ -25,12 +25,14 @@ provider "oci" {
 # 3. Data Sources: Availability Domain e Imagem
 # ----------------------------------------------------
 
+# Lista os ADs do tenancy
 data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
+# Busca a imagem mais recente do Oracle Linux 9
 data "oci_core_images" "oracle_linux" {
-  compartment_id           = var.tenancy_ocid   # <--- CORREÇÃO
+  compartment_id           = var.compartment_ocid
   operating_system         = "Oracle Linux"
   operating_system_version = "9"
 
@@ -43,12 +45,11 @@ data "oci_core_images" "oracle_linux" {
   }
 }
 
-
 # ----------------------------------------------------
 # 4. Cloud-Init
 # ----------------------------------------------------
 data "template_file" "cloud_init" {
-  template = file("cloud-init.yaml")
+  template = file("${path.module}/cloud-init.yaml")
 }
 
 # ----------------------------------------------------
@@ -61,6 +62,12 @@ resource "oci_core_instance" "ci_cd_server" {
   display_name   = "ci-cd-server-iac"
   shape          = "VM.Standard.E3.Flex"
 
+  # 1 OCPU + 1GB RAM (ajustável se quiser)
+  shape_config {
+    ocpus         = 1
+    memory_in_gbs = 1
+  }
+
   source_details {
     source_type = "image"
     source_id   = data.oci_core_images.oracle_linux.images[0].id
@@ -69,6 +76,8 @@ resource "oci_core_instance" "ci_cd_server" {
   create_vnic_details {
     subnet_id        = var.subnet_ocid
     assign_public_ip = true
+    display_name     = "ci-cd-vnic"
+    hostname_label   = "cicd"
   }
 
   metadata = {
@@ -81,4 +90,11 @@ resource "oci_core_instance" "ci_cd_server" {
     update = "30m"
     delete = "30m"
   }
+}
+
+# ----------------------------------------------------
+# 6. Saída
+# ----------------------------------------------------
+output "instance_public_ip" {
+  value = oci_core_instance.ci_cd_server.public_ip
 }
