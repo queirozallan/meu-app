@@ -77,9 +77,4 @@ resource "oci_core_instance" "ci_cd_server" {
     user_data           = base64encode(data.template_file.cloud_init.rendered)
   }
 
-  timeouts {
-    create = "30m"
-    update = "30m"
-    delete = "30m"
-  }
 }
