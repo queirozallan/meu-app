@@ -34,16 +34,12 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 data "oci_core_images" "ubuntu_image" {
-  # Revertendo para o compartimento de trabalho, pois o filtro de Tenancy falhou.
-  compartment_id           = var.compartment_ocid 
+  # CORREÇÃO: Usamos o OCID da Tenancy para buscar a imagem pública
+  compartment_id           = var.tenancy_ocid
   
-  operating_system         = "Canonical Ubuntu"
-  
-  # Filtro Essencial: Garante que estamos buscando imagens da Oracle (PLATFORM)
-  filter {
-    name = "image_source_type"
-    values = ["PLATFORM"]
-  }
+  # 🚨 CORREÇÃO ESSENCIAL: Trocamos para Oracle Linux (SO nativo garantido na OCI)
+  operating_system         = "Oracle Linux"
+  operating_system_version = "8" 
   
   # Filtro para garantir que pegamos a mais nova
   sort_by    = "TIMECREATED"
@@ -75,7 +71,7 @@ resource "oci_core_instance" "ci_cd_server" {
   
   source_details {
     source_type = "image"
-    # source_id agora acessa o primeiro elemento da lista que deve ser populada.
+    # source_id agora acessa a primeira imagem Oracle Linux válida.
     source_id   = data.oci_core_images.ubuntu_image.images[0].id 
   }
 
