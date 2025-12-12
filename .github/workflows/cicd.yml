@@ -11,7 +11,6 @@ env:
   SERVER_APP_PATH: /home/ubuntu/meu-app
 
 jobs:
-  # 1. Job de Testes (CI)
   test:
     name: 🧪 Run tests
     runs-on: ubuntu-latest
@@ -27,7 +26,6 @@ jobs:
       - name: Run tests
         run: npm test
       
-  # 2. Job de Construção e Publicação (CI)
   build_and_push:
     name: 🏗️ Build & Push Docker Image
     needs: test
@@ -49,7 +47,6 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
             ${{ env.IMAGE_NAME }}:latest
 
-  # 3. Job de Provisionamento da Infraestrutura (IaC)
   provision_infra:
     name: ⚙️ Provision Infra (Terraform Apply - OCI)
     runs-on: ubuntu-latest
@@ -66,19 +63,16 @@ jobs:
         with:
           terraform_version: 1.5.0 
           
-      # 🚨 CORREÇÃO DE CAMINHO: Cria o arquivo diretamente na pasta terraform/
       - name: Create OCI API Private Key File
         run: |
           echo "${{ secrets.OCI_API_PRIVATE_KEY }}" > oci_api_key.pem
           chmod 600 oci_api_key.pem
-        working-directory: ./terraform # <-- ESSENCIAL
+        working-directory: ./terraform 
 
-      # PASSO 1: Instala o provedor
       - name: Terraform Init (Install Provider)
         run: terraform init -backend=false
         working-directory: ./terraform
 
-      # PASSO 2: Configura o backend via CLI (Resolve erro de ordem)
       - name: Terraform Init (Configure Remote Backend)
         run: |
           terraform init -migrate-state \
@@ -110,7 +104,6 @@ jobs:
           echo "ip=$IP" >> $GITHUB_OUTPUT
         working-directory: ./terraform
 
-  # 4. Job de Deploy da Aplicação (CD)
   deploy:
     name: 🚀 Deploy to Server
     needs: provision_infra 

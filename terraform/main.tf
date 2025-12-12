@@ -34,16 +34,17 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 data "oci_core_images" "ubuntu_image" {
-  # CORREÇÃO: Usamos o OCID da Tenancy para buscar a imagem pública
-  compartment_id           = var.tenancy_ocid
+  # Revertendo para o compartimento de trabalho, pois o filtro de Tenancy falhou.
+  compartment_id           = var.compartment_ocid 
   
   operating_system         = "Canonical Ubuntu"
   
-  # 🚨 CORREÇÃO FINAL: Removendo o filtro de versão (22.04) para flexibilizar a busca
-  # e garantir que a OCI retorne uma imagem válida.
-  # A linha 'operating_system_version = "22.04"' foi removida.
-  # A linha 'shape = "VM.Standard.E3.Flex"' foi removida na correção anterior.
-
+  # Filtro Essencial: Garante que estamos buscando imagens da Oracle (PLATFORM)
+  filter {
+    name = "image_source_type"
+    values = ["PLATFORM"]
+  }
+  
   # Filtro para garantir que pegamos a mais nova
   sort_by    = "TIMECREATED"
   sort_order = "DESC"
