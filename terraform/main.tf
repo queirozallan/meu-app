@@ -34,12 +34,13 @@ data "oci_identity_availability_domains" "ads" {
 }
 
 data "oci_core_images" "ubuntu_image" {
-  # 🚨 CORREÇÃO FINAL: Usamos o OCID da Tenancy para buscar a imagem pública
+  # CORREÇÃO: Usamos o OCID da Tenancy para buscar a imagem pública
   compartment_id           = var.tenancy_ocid
   
   operating_system         = "Canonical Ubuntu"
   operating_system_version = "22.04"
-  shape                    = "VM.Standard.E3.Flex"
+  # 🚨 CORREÇÃO FINAL: A linha 'shape = "VM.Standard.E3.Flex"' FOI REMOVIDA
+  # para que a lista de imagens não seja vazia.
   
   # Filtro para garantir que pegamos a mais nova
   sort_by    = "TIMECREATED"
@@ -67,11 +68,11 @@ resource "oci_core_instance" "ci_cd_server" {
   
   compartment_id = var.compartment_ocid
   display_name   = "ci-cd-server-iac"
-  shape          = "VM.Standard.E3.Flex"
+  shape          = "VM.Standard.E3.Flex" # <-- O shape é aplicado AQUI, no recurso.
   
   source_details {
     source_type = "image"
-    # source_id agora acessa o primeiro item da lista não-nula
+    # source_id agora acessa o primeiro elemento da lista não-vazia.
     source_id   = data.oci_core_images.ubuntu_image.images[0].id 
   }
 
