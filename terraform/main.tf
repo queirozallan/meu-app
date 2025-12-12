@@ -2,7 +2,7 @@
 # 1. Configuração do Terraform (Provedores e Backend Remoto)
 # ----------------------------------------------------
 terraform {
-  # Configuração do Backend Remoto (State na OCI Object Storage)
+  # 1. CONFIGURAÇÃO DO BACKEND (MOVEMOS PARA O INÍCIO PARA RESOLVER O ERRO)
   backend "oci" {
     bucket      = "terraform-state-querizallan"  # Seu Bucket Name
     namespace   = "gr2km3pgjkez"                 # Seu Namespace do Object Storage
@@ -10,6 +10,7 @@ terraform {
     key         = "terraform.tfstate"            # Nome do arquivo de estado dentro do bucket
   }
   
+  # 2. CONFIGURAÇÃO DOS PROVEDORES REQUERIDOS
   required_providers {
     oci = {
       source  = "oracle/oci"
