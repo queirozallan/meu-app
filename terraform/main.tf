@@ -1,16 +1,10 @@
 # ----------------------------------------------------
-# 1. Configuração do Terraform (Provedores e Backend Remoto)
+# 1. Configuração do Terraform (Provedores)
 # ----------------------------------------------------
 terraform {
-  # 1. CONFIGURAÇÃO DO BACKEND (MOVEMOS PARA O INÍCIO PARA RESOLVER O ERRO)
-  backend "oci" {
-    bucket      = "terraform-state-querizallan"  # Seu Bucket Name
-    namespace   = "gr2km3pgjkez"                 # Seu Namespace do Object Storage
-    region      = "sa-saopaulo-1"                # Sua Região
-    key         = "terraform.tfstate"            # Nome do arquivo de estado dentro do bucket
-  }
+  # IMPORTANTE: O bloco 'backend "oci" {}' FOI REMOVIDO para evitar o erro 'Unsupported backend type'
+  # A configuração do backend é agora passada via CLI no arquivo cicd.yml (Job provision_infra).
   
-  # 2. CONFIGURAÇÃO DOS PROVEDORES REQUERIDOS
   required_providers {
     oci = {
       source  = "oracle/oci"

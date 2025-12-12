@@ -77,8 +77,8 @@ jobs:
         run: terraform init -backend=false
         working-directory: ./terraform
 
-      # 🚨 PASSO 2 CORRIGIDO: Inicializa o backend e carrega o estado, passando as configs via CLI
-      # Isso contorna o problema de ordem no main.tf que estava causando o erro "Unsupported backend type"
+      # 🚨 PASSO 2 CORRIGIDO: Inicializa o backend passando as configurações via CLI.
+      # Isso forçará o uso do OCI Object Storage e resolverá o erro.
       - name: Terraform Init (Configure Remote Backend)
         run: |
           terraform init -migrate-state \
