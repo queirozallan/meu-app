@@ -22,34 +22,32 @@ provider "oci" {
 }
 
 # ----------------------------------------------------
-# 3. Data Sources: Availability Domain e Imagem
+# 3. Data Sources: AD & Imagem Oracle Linux
 # ----------------------------------------------------
 
-# Lista os ADs do tenancy
 data "oci_identity_availability_domains" "ads" {
   compartment_id = var.tenancy_ocid
 }
 
-# Busca a imagem mais recente do Oracle Linux 9
+# 🔧 Correção: pega QUALQUER Oracle Linux Gen2 mais recente
 data "oci_core_images" "oracle_linux" {
-  compartment_id           = var.compartment_ocid
-  operating_system         = "Oracle Linux"
-  operating_system_version = "9"
+  compartment_id = var.compartment_ocid
+
+  filter {
+    name   = "display_name"
+    values = ["Oracle-Linux-*-Gen2"]
+    regex  = true
+  }
 
   sort_by    = "TIMECREATED"
   sort_order = "DESC"
-
-  filter {
-    name   = "lifecycle_state"
-    values = ["AVAILABLE"]
-  }
 }
 
 # ----------------------------------------------------
 # 4. Cloud-Init
 # ----------------------------------------------------
 data "template_file" "cloud_init" {
-  template = file("${path.module}/cloud-init.yaml")
+  template = file("cloud-init.yaml")
 }
 
 # ----------------------------------------------------
@@ -62,10 +60,9 @@ resource "oci_core_instance" "ci_cd_server" {
   display_name   = "ci-cd-server-iac"
   shape          = "VM.Standard.E3.Flex"
 
-  # 1 OCPU + 1GB RAM (ajustável se quiser)
   shape_config {
     ocpus         = 1
-    memory_in_gbs = 1
+    memory_in_gbs = 4
   }
 
   source_details {
@@ -76,8 +73,6 @@ resource "oci_core_instance" "ci_cd_server" {
   create_vnic_details {
     subnet_id        = var.subnet_ocid
     assign_public_ip = true
-    display_name     = "ci-cd-vnic"
-    hostname_label   = "cicd"
   }
 
   metadata = {
@@ -93,8 +88,18 @@ resource "oci_core_instance" "ci_cd_server" {
 }
 
 # ----------------------------------------------------
-# 6. Saída
+# 6. Network Outputs (IP público)
 # ----------------------------------------------------
-output "instance_public_ip" {
-  value = oci_core_instance.ci_cd_server.public_ip
+data "oci_core_vnic_attachments" "vnic_attachments" {
+  compartment_id = var.compartment_ocid
+  instance_id    = oci_core_instance.ci_cd_server.id
+}
+
+data "oci_core_vnic" "vnic" {
+  vnic_id = data.oci_core_vnic_attachments.vnic_attachments.vnic_attachments[0].vnic_id
+}
+
+output "server_public_ip" {
+  description = "IP Público do servidor provisionado na OCI."
+  value       = data.oci_core_vnic.vnic.public_ip_address
 }
