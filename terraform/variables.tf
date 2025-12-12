@@ -14,10 +14,8 @@ variable "fingerprint" {
   type        = string
 }
 
-variable "private_key_content" {
-  description = "Conteúdo da chave privada OCI (passado via Secret)."
-  type        = string
-}
+# NOTA: A variável "private_key_content" foi removida, pois a chave é passada
+# via arquivo (oci_api_key.pem) e não via conteúdo da variável.
 
 # Variáveis de Localização e Recurso
 variable "region" {
