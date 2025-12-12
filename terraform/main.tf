@@ -2,32 +2,34 @@
 # 1. Configuração do Terraform (Provedores)
 # ----------------------------------------------------
 terraform {
-  # O bloco 'backend "oci" {}' FOI REMOVIDO e a configuração é passada via CLI no cicd.yml.
-  
   required_providers {
     oci = {
       source  = "oracle/oci"
       version = "~> 5.0"
     }
   }
-
 }
 
 # ----------------------------------------------------
 # 2. Definição do Provedor OCI (Autenticação)
 # ----------------------------------------------------
 provider "oci" {
-  # Variáveis de autenticação injetadas via Secrets do GitHub
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
   fingerprint      = var.fingerprint
-  private_key_path = var.private_key_path # 🚨 CORREÇÃO: Usando a nova variável declarada
+  private_key_path = var.private_key_path 
   region           = var.region
 }
 
 # ----------------------------------------------------
-# 3. Data Source: Encontrar a Imagem Ubuntu
+# 3. Data Source: Encontrar o Availability Domain e a Imagem
 # ----------------------------------------------------
+
+# 🚨 NOVO: Data Source para pegar o primeiro Availability Domain disponível
+data "oci_identity_availability_domains" "ads" {
+  compartment_id = var.tenancy_ocid
+}
+
 data "oci_core_images" "ubuntu_image" {
   compartment_id = var.compartment_ocid
   operating_system = "Canonical Ubuntu"
@@ -52,6 +54,9 @@ data "template_file" "cloud_init" {
 # 5. Recurso: OCI Compute Instance (VM de Produção)
 # ----------------------------------------------------
 resource "oci_core_instance" "ci_cd_server" {
+  # 🚨 CORREÇÃO: Adiciona o Availability Domain
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  
   compartment_id = var.compartment_ocid
   display_name   = "ci-cd-server-iac"
   shape          = "VM.Standard.E3.Flex"
@@ -71,4 +76,5 @@ resource "oci_core_instance" "ci_cd_server" {
     user_data           = base64encode(data.template_file.cloud_init.rendered)
   }
 
+  
 }
