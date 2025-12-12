@@ -65,17 +65,20 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.5.0 
+          
+      # 🚨 CORREÇÃO DE CAMINHO: Cria o arquivo diretamente na pasta terraform/
       - name: Create OCI API Private Key File
         run: |
           echo "${{ secrets.OCI_API_PRIVATE_KEY }}" > oci_api_key.pem
           chmod 600 oci_api_key.pem
+        working-directory: ./terraform # <-- ESSENCIAL
 
       # PASSO 1: Instala o provedor
       - name: Terraform Init (Install Provider)
         run: terraform init -backend=false
         working-directory: ./terraform
 
-      # PASSO 2: Configura o backend via CLI
+      # PASSO 2: Configura o backend via CLI (Resolve erro de ordem)
       - name: Terraform Init (Configure Remote Backend)
         run: |
           terraform init -migrate-state \
